@@ -2,21 +2,22 @@
  * Sidebar Component
  *
  * Props:
- *   activeTab  — id string of the currently active nav item
- *   isOpen     — boolean controlling the mobile drawer (ignored on desktop via CSS)
- *   onClose    — callback to close the mobile drawer
+ *   activeTab   — id string of the currently active nav item ('overview' | 'devices' | ...)
+ *   isOpen      — boolean controlling the mobile drawer (ignored on desktop via CSS)
+ *   onClose     — callback to close the mobile drawer
+ *   onSelectTab — callback fired when an available nav tab is selected
  *
  * On desktop (> 1024px): permanently visible; isOpen and onClose have no visual effect.
  * On mobile/tablet (≤ 1024px): slides in from the left when isOpen is true.
  *   A close button (✕) inside the drawer lets keyboard and touch users dismiss it.
  *   Pressing Escape also closes the drawer (handled here via onKeyDown).
  */
-function Sidebar({ activeTab = 'overview', isOpen = false, onClose }) {
+function Sidebar({ activeTab = 'overview', isOpen = false, onClose, onSelectTab }) {
   const navItems = [
     {
       id: 'overview',
       label: 'Overview',
-      badge: 'Active',
+      badge: activeTab === 'overview' ? 'Active' : undefined,
       isAvailable: true,
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -30,8 +31,8 @@ function Sidebar({ activeTab = 'overview', isOpen = false, onClose }) {
     {
       id: 'devices',
       label: 'Devices',
-      badge: 'Stage 3',
-      isAvailable: false,
+      badge: activeTab === 'devices' ? 'Active' : '3 Devices',
+      isAvailable: true,
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <rect x="2" y="3" width="20" height="14" rx="2" />
@@ -74,10 +75,15 @@ function Sidebar({ activeTab = 'overview', isOpen = false, onClose }) {
     }
   }
 
-  // Available nav items close the drawer on mobile after selection
+  // Available nav items switch tabs and close the mobile drawer
   function handleNavClick(item) {
-    if (item.isAvailable && onClose) {
-      onClose();
+    if (item.isAvailable) {
+      if (onSelectTab) {
+        onSelectTab(item.id);
+      }
+      if (onClose) {
+        onClose();
+      }
     }
   }
 
