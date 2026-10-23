@@ -1,0 +1,253 @@
+/* ==========================================================================
+   AI Productivity Coach - Dashboard Summary Cards Styles
+   ========================================================================== */
+
+/* 1. Summary Cards Section Wrapper */
+.summary-cards-section {
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+/* Header row above the cards (title & demo badge) */
+.summary-cards-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.summary-cards-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.summary-demo-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary-color);
+  background-color: var(--primary-light);
+  border: 1px solid var(--primary-border);
+  padding: 3px 9px;
+  border-radius: 9999px;
+  letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.summary-demo-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+}
+
+/* 2. Responsive Cards Grid */
+.summary-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  width: 100%;
+}
+
+/* 3. Individual Summary Card */
+.summary-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: #cbd5e1;
+}
+
+/* Top bar within card: icon container and status pill */
+.summary-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+/* Icon circular wrapper */
+.summary-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Themed icon color variations */
+.summary-card-icon.icon-devices {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+}
+
+.summary-card-icon.icon-active {
+  background-color: var(--status-active-bg);
+  color: var(--status-active-text);
+}
+
+.summary-card-icon.icon-total {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+/* Pill badge on top right of card */
+.summary-card-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.2;
+}
+
+.summary-card-badge.badge-primary {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+}
+
+.summary-card-badge.badge-active {
+  background-color: var(--status-active-bg);
+  color: var(--status-active-text);
+}
+
+.summary-card-badge.badge-neutral {
+  background-color: var(--bg-app);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+/* Pulsing live dot for active sessions */
+.summary-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--status-active-text);
+  box-shadow: 0 0 0 2px var(--status-active-bg);
+  animation: pulseAnimation 2s infinite;
+}
+
+@keyframes pulseAnimation {
+  0% {
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(5, 150, 105, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0);
+  }
+}
+
+/* 4. Card Content: Label & Value */
+.summary-card-body {
+  margin-bottom: 14px;
+}
+
+.summary-card-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.summary-card-value-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.summary-card-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+  letter-spacing: -0.8px;
+}
+
+.summary-card-unit {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* 5. Card Footer: Contextual description */
+.summary-card-footer {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.summary-card-detail {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   RESPONSIVE BREAKPOINTS FOR SUMMARY CARDS
+   ========================================================================== */
+
+/* Tablet (≤ 1024px): 2 columns or wrapped grid */
+@media (max-width: 1024px) {
+  .summary-cards-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  .summary-card {
+    padding: 16px;
+  }
+
+  .summary-card-value {
+    font-size: 28px;
+  }
+}
+
+/* Mobile phones (≤ 640px): 1 column vertical stack */
+@media (max-width: 640px) {
+  .summary-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .summary-card {
+    padding: 16px;
+  }
+
+  .summary-card-value {
+    font-size: 26px;
+  }
+
+  .summary-cards-header {
+    margin-bottom: 12px;
+  }
+}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import LoginPage from './components/LoginPage';
+import SummaryCards from './components/SummaryCards';
 import './App.css';
 
 /**
@@ -63,15 +64,19 @@ function App() {
         />
 
         <main className="dashboard-content">
+          {/* Stage 2 Feature: Dashboard Summary Cards */}
+          <SummaryCards />
+
+          {/* Progress / Next Step Preview */}
           <section className="stage-placeholder-card">
-            <div className="card-badge">Stage 1 Complete</div>
-            <h2>Dashboard Shell Ready</h2>
+            <div className="card-badge">Stage 2 Complete</div>
+            <h2>Summary Cards Active</h2>
             <p>
-              The global layout, left navigation sidebar, and top header are successfully initialized.
+              Overview metric cards for connected devices, active study sessions, and total sessions are now live with responsive styling.
             </p>
             <div className="stage-next-steps">
-              <span className="next-label">Next Up (Stage 2):</span>
-              <p>Summary metric cards for <em>Connected Devices</em>, <em>Active Sessions</em>, and <em>Total Sessions</em>.</p>
+              <span className="next-label">Next Up (Stage 3):</span>
+              <p>Connected Devices section with sample device statuses, device types, and pairing details.</p>
             </div>
           </section>
         </main>
