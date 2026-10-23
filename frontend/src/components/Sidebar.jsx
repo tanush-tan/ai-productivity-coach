@@ -56,8 +56,8 @@ function Sidebar({ activeTab = 'overview', isOpen = false, onClose, onSelectTab 
     {
       id: 'reports',
       label: 'Reports',
-      badge: 'Soon',
-      isAvailable: false,
+      badge: activeTab === 'reports' ? 'Active' : undefined,
+      isAvailable: true,
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <line x1="18" y1="20" x2="18" y2="10" />

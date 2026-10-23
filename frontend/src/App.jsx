@@ -5,6 +5,7 @@ import LoginPage from './components/LoginPage';
 import SummaryCards from './components/SummaryCards';
 import ConnectedDevices from './components/ConnectedDevices';
 import MonitoringSessions from './components/MonitoringSessions';
+import OverallReports from './components/OverallReports';
 import './App.css';
 
 /**
@@ -53,6 +54,9 @@ function App() {
   } else if (activeTab === 'sessions') {
     headerTitle = 'Monitoring Sessions';
     headerSubtitle = 'Supervised Device Sessions & Focus Logs';
+  } else if (activeTab === 'reports') {
+    headerTitle = 'Overall Reports';
+    headerSubtitle = 'Family Study Trends & Analytics';
   }
 
   // --- Dashboard view ---
@@ -94,6 +98,11 @@ function App() {
             <MonitoringSessions />
           )}
 
+          {activeTab === 'reports' && (
+            /* Stage 5 Feature: Dedicated Overall Reports View */
+            <OverallReports />
+          )}
+
           {activeTab === 'overview' && (
             /* Overview Tab: Summary Cards & Roadmap Status */
             <>
@@ -105,15 +114,15 @@ function App() {
 
               {/* Progress / Next Step Preview */}
               <section className="stage-placeholder-card">
-                <div className="card-badge">Stage 4 Complete</div>
-                <h2>Monitoring Sessions Active</h2>
+                <div className="card-badge">Stage 5 Complete</div>
+                <h2>All Core Frontend Stages Ready</h2>
                 <p>
-                  Supervised session history, live activity telemetry, and focus scores are available in the dedicated Monitoring Sessions view.
+                  Overview Metrics, Connected Devices, Monitoring Sessions, Detailed Session Reports, and Overall Family Analytics are all fully implemented with responsive styling.
                 </p>
                 <div style={{ marginTop: '16px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('sessions')}
+                    onClick={() => setActiveTab('reports')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -128,7 +137,27 @@ function App() {
                       cursor: 'pointer',
                     }}
                   >
-                    <span>View Monitoring Sessions</span>
+                    <span>View Overall Reports</span>
+                    <span aria-hidden="true">&rarr;</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('sessions')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      backgroundColor: 'var(--bg-surface)',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span>Monitoring Sessions</span>
                     <span aria-hidden="true">&rarr;</span>
                   </button>
                   <button
@@ -153,8 +182,8 @@ function App() {
                   </button>
                 </div>
                 <div className="stage-next-steps">
-                  <span className="next-label">Next Up (Stage 5):</span>
-                  <p>Responsive refinement, edge cases, accessibility checks, and final testing.</p>
+                  <span className="next-label">Architecture Status:</span>
+                  <p>Frontend presentation tier complete. Designed for seamless pairing with future local daemon / backend services.</p>
                 </div>
               </section>
             </>
