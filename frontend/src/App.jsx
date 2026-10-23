@@ -1,23 +1,37 @@
 import { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import LoginPage from './components/LoginPage';
 import './App.css';
 
 /**
- * App Component (Stage 1)
+ * App Component
  *
- * Serves as the main container and layout shell for the AI Productivity Coach
- * Parent Dashboard.
+ * Top-level container that decides which screen to display:
+ *   - 'login'     → <LoginPage />  (the first screen the parent sees)
+ *   - 'dashboard' → the existing dashboard shell (Sidebar + Header + content)
  *
- * In Stage 1:
- * - Arranges the persistent left Sidebar and the top Header.
- * - Manages the active navigation tab state (defaulting to 'overview').
- * - Prepares the central dashboard content container ready for Stage 2 cards.
+ * Navigation is handled with a single piece of state so no routing
+ * library is needed at this stage.
  */
 function App() {
-  // Active navigation tab state ('overview' is selected for Stage 1)
+  // Controls which view is currently rendered
+  const [currentView, setCurrentView] = useState('login');
+
+  // Active navigation tab state (defaults to 'overview')
   const [activeTab] = useState('overview');
 
+  // Called by LoginPage when demo credentials are accepted
+  function handleLoginSuccess() {
+    setCurrentView('dashboard');
+  }
+
+  // --- Render login page ---
+  if (currentView === 'login') {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // --- Render dashboard (unchanged from Stage 1) ---
   return (
     <div className="dashboard-shell">
       {/* 1. Left Navigation Sidebar */}
@@ -26,9 +40,9 @@ function App() {
       {/* 2. Main Content Area */}
       <div className="main-wrapper">
         {/* Top Header */}
-        <Header 
-          title="Parent Dashboard" 
-          subtitle="Supervision & Device Sessions" 
+        <Header
+          title="Parent Dashboard"
+          subtitle="Supervision & Device Sessions"
         />
 
         {/* Central Dashboard Content Area */}
