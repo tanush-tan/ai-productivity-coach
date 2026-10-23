@@ -15,7 +15,7 @@ import './SummaryCards.css';
  * immediately without requiring a backend or parent state, while still allowing
  * future stages to pass dynamic data via props.
  */
-function SummaryCards({ cardsData, onViewDevices }) {
+function SummaryCards({ cardsData, onViewDevices, onViewSessions }) {
   // Fictional demo dataset
   const defaultMetrics = [
     {
@@ -161,6 +161,25 @@ function SummaryCards({ cardsData, onViewDevices }) {
                   }}
                 >
                   Manage &rarr;
+                </button>
+              )}
+              {card.id === 'active-sessions' && onViewSessions && (
+                <button
+                  type="button"
+                  onClick={onViewSessions}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--status-active-text)',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    padding: '2px 4px',
+                    borderRadius: '4px',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  View live &rarr;
                 </button>
               )}
             </div>

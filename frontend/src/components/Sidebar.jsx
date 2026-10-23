@@ -44,8 +44,8 @@ function Sidebar({ activeTab = 'overview', isOpen = false, onClose, onSelectTab 
     {
       id: 'sessions',
       label: 'Monitoring Sessions',
-      badge: 'Stage 4',
-      isAvailable: false,
+      badge: activeTab === 'sessions' ? 'Active' : '1 Live',
+      isAvailable: true,
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="10" />

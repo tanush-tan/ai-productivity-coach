@@ -4,6 +4,7 @@ import Header from './components/Header';
 import LoginPage from './components/LoginPage';
 import SummaryCards from './components/SummaryCards';
 import ConnectedDevices from './components/ConnectedDevices';
+import MonitoringSessions from './components/MonitoringSessions';
 import './App.css';
 
 /**
@@ -43,8 +44,16 @@ function App() {
   }
 
   // Dynamic header copy based on current section
-  const headerTitle = activeTab === 'devices' ? 'Connected Devices' : 'Parent Dashboard';
-  const headerSubtitle = activeTab === 'devices' ? 'Hardware & Pairing Telemetry' : 'Supervision & Device Sessions';
+  let headerTitle = 'Parent Dashboard';
+  let headerSubtitle = 'Supervision & Device Sessions';
+
+  if (activeTab === 'devices') {
+    headerTitle = 'Connected Devices';
+    headerSubtitle = 'Hardware & Pairing Telemetry';
+  } else if (activeTab === 'sessions') {
+    headerTitle = 'Monitoring Sessions';
+    headerSubtitle = 'Supervised Device Sessions & Focus Logs';
+  }
 
   // --- Dashboard view ---
   return (
@@ -75,26 +84,36 @@ function App() {
         />
 
         <main className="dashboard-content">
-          {activeTab === 'devices' ? (
+          {activeTab === 'devices' && (
             /* Stage 3 Feature: Dedicated Connected Devices View */
             <ConnectedDevices />
-          ) : (
+          )}
+
+          {activeTab === 'sessions' && (
+            /* Stage 4 Feature: Dedicated Monitoring Sessions View */
+            <MonitoringSessions />
+          )}
+
+          {activeTab === 'overview' && (
             /* Overview Tab: Summary Cards & Roadmap Status */
             <>
               {/* Stage 2 Feature: Dashboard Summary Cards */}
-              <SummaryCards onViewDevices={() => setActiveTab('devices')} />
+              <SummaryCards
+                onViewDevices={() => setActiveTab('devices')}
+                onViewSessions={() => setActiveTab('sessions')}
+              />
 
               {/* Progress / Next Step Preview */}
               <section className="stage-placeholder-card">
-                <div className="card-badge">Stage 3 Complete</div>
-                <h2>Connected Devices View Available</h2>
+                <div className="card-badge">Stage 4 Complete</div>
+                <h2>Monitoring Sessions Active</h2>
                 <p>
-                  Manage your 3 demo devices (Liam’s Laptop, Study PC, and Tablet) or simulate pairing new hardware.
+                  Supervised session history, live activity telemetry, and focus scores are available in the dedicated Monitoring Sessions view.
                 </p>
-                <div style={{ marginTop: '16px' }}>
+                <div style={{ marginTop: '16px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('devices')}
+                    onClick={() => setActiveTab('sessions')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -109,13 +128,33 @@ function App() {
                       cursor: 'pointer',
                     }}
                   >
-                    <span>View Connected Devices</span>
+                    <span>View Monitoring Sessions</span>
+                    <span aria-hidden="true">&rarr;</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('devices')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      backgroundColor: 'var(--bg-surface)',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span>Connected Devices (3)</span>
                     <span aria-hidden="true">&rarr;</span>
                   </button>
                 </div>
                 <div className="stage-next-steps">
-                  <span className="next-label">Next Up (Stage 4):</span>
-                  <p>Recent Monitoring Sessions table with sample start/end times and status filters.</p>
+                  <span className="next-label">Next Up (Stage 5):</span>
+                  <p>Responsive refinement, edge cases, accessibility checks, and final testing.</p>
                 </div>
               </section>
             </>
