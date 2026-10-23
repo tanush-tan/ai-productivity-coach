@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AI Productivity Coach - App & Dashboard Layout Styles (Stage 1)
+   AI Productivity Coach - App & Dashboard Layout Styles
    ========================================================================== */
 
 /* 1. Main Dashboard Shell (Outer flex container) */
@@ -10,7 +10,9 @@
   background-color: var(--bg-app);
 }
 
-/* 2. Left Sidebar Navigation Panel */
+/* 2. Left Sidebar Navigation Panel
+   Desktop default: always visible, 260px wide, sticky.
+   Mobile override in the @media block below.                              */
 .sidebar {
   width: 260px;
   min-width: 260px;
@@ -21,7 +23,7 @@
   height: 100vh;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 200;
 }
 
 /* Brand area at the top of the sidebar */
@@ -46,6 +48,7 @@
 }
 
 .brand-info {
+  flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -65,6 +68,32 @@
   font-weight: 500;
 }
 
+/* Close button inside sidebar — hidden on desktop, shown on mobile */
+.sidebar-close-btn {
+  display: none; /* shown via media query on mobile */
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-close-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sidebar-close-btn:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
 /* Navigation items container */
 .sidebar-nav {
   flex: 1;
@@ -72,6 +101,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
 }
 
 .nav-section-label {
@@ -89,7 +119,7 @@
   gap: 4px;
 }
 
-/* Individual navigation item styling */
+/* Individual navigation item */
 .nav-item {
   display: flex;
   align-items: center;
@@ -101,6 +131,16 @@
   color: var(--text-secondary);
   transition: background-color 0.15s ease, color 0.15s ease;
   user-select: none;
+}
+
+/* Larger tap target on mobile for available items */
+.nav-item[role="button"] {
+  cursor: pointer;
+}
+
+.nav-item[role="button"]:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
 
 .nav-icon {
@@ -170,9 +210,15 @@
   border-radius: 50%;
   background-color: var(--status-active-text);
   box-shadow: 0 0 0 2px var(--status-active-bg);
+  flex-shrink: 0;
 }
 
-/* 3. Main Content Wrapper */
+/* 3. Mobile backdrop — sits behind the open drawer, above the content */
+.sidebar-backdrop {
+  display: none; /* shown via media query when drawer is open */
+}
+
+/* 4. Main Content Wrapper */
 .main-wrapper {
   flex: 1;
   display: flex;
@@ -180,34 +226,72 @@
   min-width: 0; /* Prevents overflow inside flex child */
 }
 
-/* 4. Top Header */
+/* 5. Top Header */
 .dashboard-header {
-  height: 72px;
+  height: 64px;
   background-color: var(--bg-surface);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
+  padding: 0 24px;
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 100;
+}
+
+/* Left side of header: hamburger + title group */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Hamburger button — hidden on desktop, shown on mobile */
+.mobile-menu-btn {
+  display: none; /* shown via media query on mobile */
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.mobile-menu-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.mobile-menu-btn:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
 
 .header-titles {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .header-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-subtitle {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -215,7 +299,13 @@
 .header-profile {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Elements hidden on small screens */
+.header-hide-mobile {
+  display: flex; /* default: shown on desktop */
 }
 
 .profile-badge {
@@ -228,10 +318,10 @@
   border-radius: 6px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 .profile-info {
-  display: flex;
   flex-direction: column;
   text-align: right;
 }
@@ -261,6 +351,7 @@
   letter-spacing: 0.5px;
   position: relative;
   box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
 }
 
 .avatar-online-dot {
@@ -274,7 +365,7 @@
   border-radius: 50%;
 }
 
-/* 5. Central Dashboard Content Area */
+/* 6. Central Dashboard Content Area */
 .dashboard-content {
   flex: 1;
   padding: 32px;
@@ -330,4 +421,91 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 4px;
+}
+
+/* ==========================================================================
+   RESPONSIVE OVERRIDES
+   Breakpoint: tablet + mobile ≤ 1024px
+   ========================================================================== */
+@media (max-width: 1024px) {
+
+  /* --- Sidebar: slide-in drawer --- */
+  .sidebar {
+    position: fixed;           /* lifts out of normal flow */
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 300;              /* above backdrop (200) and header (100) */
+    transform: translateX(-100%);          /* hidden off-screen by default */
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    box-shadow: none;
+  }
+
+  /* When App.jsx adds this class, the drawer slides in */
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Show the ✕ close button inside the drawer */
+  .sidebar-close-btn {
+    display: flex;
+  }
+
+  /* --- Backdrop --- */
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;                  /* covers entire viewport */
+    background-color: rgba(0, 0, 0, 0.45);
+    z-index: 250;              /* above content, below sidebar */
+    animation: backdropFadeIn 0.2s ease forwards;
+  }
+
+  @keyframes backdropFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* --- Header: show hamburger, hide profile details --- */
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  .header-hide-mobile {
+    display: none;
+  }
+
+  /* Reduce header padding on smaller screens */
+  .dashboard-header {
+    padding: 0 16px;
+  }
+
+  /* --- Content: reduce padding --- */
+  .dashboard-content {
+    padding: 20px 16px;
+  }
+
+  /* Placeholder card: full width on narrow screens */
+  .stage-placeholder-card {
+    max-width: 100%;
+    padding: 20px;
+  }
+}
+
+/* Extra-small refinement for phones ≤ 640px */
+@media (max-width: 640px) {
+  .header-subtitle {
+    display: none; /* keep header single-line on very small phones */
+  }
+
+  .header-title {
+    font-size: 16px;
+  }
+
+  /* Comfortable 44px touch target for nav items on phones */
+  .nav-item {
+    padding: 12px 14px;
+    min-height: 44px;
+  }
 }

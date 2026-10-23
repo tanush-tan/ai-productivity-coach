@@ -7,47 +7,62 @@ import './App.css';
 /**
  * App Component
  *
- * Top-level container that decides which screen to display:
- *   - 'login'     → <LoginPage />  (the first screen the parent sees)
- *   - 'dashboard' → the existing dashboard shell (Sidebar + Header + content)
- *
- * Navigation is handled with a single piece of state so no routing
- * library is needed at this stage.
+ * Top-level container. Manages two orthogonal pieces of state:
+ *   1. currentView  — 'login' | 'dashboard'
+ *   2. isSidebarOpen — mobile drawer open/closed (ignored on desktop via CSS)
  */
 function App() {
-  // Controls which view is currently rendered
   const [currentView, setCurrentView] = useState('login');
-
-  // Active navigation tab state (defaults to 'overview')
   const [activeTab] = useState('overview');
 
-  // Called by LoginPage when demo credentials are accepted
+  // Mobile sidebar drawer state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   function handleLoginSuccess() {
     setCurrentView('dashboard');
   }
 
-  // --- Render login page ---
+  function handleMenuClick() {
+    setIsSidebarOpen(true);
+  }
+
+  function handleSidebarClose() {
+    setIsSidebarOpen(false);
+  }
+
+  // --- Login view ---
   if (currentView === 'login') {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
 
-  // --- Render dashboard (unchanged from Stage 1) ---
+  // --- Dashboard view ---
   return (
     <div className="dashboard-shell">
-      {/* 1. Left Navigation Sidebar */}
-      <Sidebar activeTab={activeTab} />
+      {/* Semi-transparent backdrop — visible on mobile when drawer is open */}
+      {isSidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={handleSidebarClose}
+          aria-hidden="true"
+        />
+      )}
 
-      {/* 2. Main Content Area */}
+      {/* Left Navigation Sidebar */}
+      <Sidebar
+        activeTab={activeTab}
+        isOpen={isSidebarOpen}
+        onClose={handleSidebarClose}
+      />
+
+      {/* Main Content Area */}
       <div className="main-wrapper">
-        {/* Top Header */}
         <Header
           title="Parent Dashboard"
           subtitle="Supervision & Device Sessions"
+          onMenuClick={handleMenuClick}
         />
 
-        {/* Central Dashboard Content Area */}
         <main className="dashboard-content">
-          {/* Stage 1 Shell Readiness Card */}
           <section className="stage-placeholder-card">
             <div className="card-badge">Stage 1 Complete</div>
             <h2>Dashboard Shell Ready</h2>

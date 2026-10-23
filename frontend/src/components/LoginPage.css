@@ -314,7 +314,7 @@
 }
 
 /* ------------------------------------------------------------------
-   Responsive — collapse to single-column on narrow viewports
+   Responsive — Tablet: collapse to vertical stack (≤ 768px)
    ------------------------------------------------------------------ */
 @media (max-width: 768px) {
   .login-page {
@@ -336,5 +336,71 @@
 
   .login-form-card {
     padding: 28px 20px;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Responsive — Phone: compact layout (≤ 640px)
+   Hides the feature bullet list so the form is reached without
+   excessive scrolling, and reduces padding for narrow screens.
+   ------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  /* Compact branding panel — just icon + title + tagline */
+  .login-brand-panel {
+    padding: 24px 20px;
+  }
+
+  .login-brand-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+  }
+
+  .login-brand-name {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+
+  .login-brand-tagline {
+    font-size: 13px;
+    margin-bottom: 0;
+  }
+
+  /* Hide feature list — saves ~100px of vertical space on phones */
+  .login-feature-list {
+    display: none;
+  }
+
+  /* Tight form card */
+  .login-form-panel {
+    padding: 20px 16px;
+  }
+
+  .login-form-card {
+    padding: 24px 16px;
+    border-radius: 12px;
+  }
+
+  /* Slightly smaller heading */
+  .login-form-title {
+    font-size: 19px;
+  }
+
+  /* Comfortable 44px tap target for inputs */
+  .login-input {
+    height: 44px;
+    font-size: 16px; /* prevents iOS auto-zoom on focus */
+  }
+
+  /* Comfortable 48px tap target for submit button */
+  .login-submit-btn {
+    height: 48px;
+    font-size: 15px;
+  }
+
+  /* Compact demo notice */
+  .login-demo-notice {
+    margin-top: 16px;
+    padding: 12px 14px;
   }
 }
