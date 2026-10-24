@@ -1,0 +1,310 @@
+/* ==========================================================================
+   AI Productivity Coach - Student Settings Styles
+   ========================================================================== */
+
+.student-settings-view {
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Profile Card */
+.settings-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 20px;
+}
+
+.settings-avatar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.settings-avatar-large {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: #0284c7;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  box-shadow: 0 4px 10px rgba(2, 132, 199, 0.25);
+}
+
+.settings-profile-name {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.settings-profile-role {
+  font-size: 12px;
+  color: #0284c7;
+  font-weight: 600;
+}
+
+.profile-active-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #059669;
+  background-color: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.settings-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  padding-top: 4px;
+}
+
+.settings-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.item-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.item-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Device Section */
+.settings-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.settings-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.settings-demo-pill {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background-color: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+
+.device-status-box {
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.device-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 14px;
+}
+
+.device-icon {
+  font-size: 24px;
+}
+
+.device-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.device-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.device-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.device-state-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #059669;
+}
+
+.device-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #059669;
+}
+
+.supervision-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.supervision-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.supervision-item strong {
+  display: block;
+  font-size: 12px;
+  color: var(--text-primary);
+  margin-bottom: 1px;
+}
+
+.supervision-item p {
+  margin: 0;
+}
+
+.sup-icon {
+  font-size: 14px;
+  margin-top: 1px;
+}
+
+/* Table List */
+.settings-table-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-table-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 13px;
+}
+
+.settings-table-row:last-child {
+  border-bottom: none;
+}
+
+.row-key {
+  color: var(--text-secondary);
+}
+
+.row-val {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Exit Card */
+.settings-exit-card {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background-color: #fff7ed;
+  border-color: #ffedd5;
+}
+
+.exit-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #9a3412;
+  margin-bottom: 2px;
+}
+
+.exit-desc {
+  font-size: 12px;
+  color: #c2410c;
+  line-height: 1.4;
+}
+
+.exit-role-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid #fdba74;
+  background-color: #ffffff;
+  color: #c2410c;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.exit-role-btn:hover {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+@media (max-width: 600px) {
+  .settings-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-exit-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .exit-role-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

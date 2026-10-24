@@ -12,7 +12,7 @@
  *   A close button (✕) inside the drawer lets keyboard and touch users dismiss it.
  *   Pressing Escape also closes the drawer (handled here via onKeyDown).
  */
-function Sidebar({ activeTab = 'overview', isOpen = false, onClose, onSelectTab }) {
+function Sidebar({ activeTab = 'overview', isOpen = false, onClose, onSelectTab, onSwitchRole }) {
   const navItems = [
     {
       id: 'overview',
@@ -163,6 +163,33 @@ function Sidebar({ activeTab = 'overview', isOpen = false, onClose, onSelectTab 
           <span className="status-dot" aria-hidden="true"></span>
           <span>Desktop Host Active</span>
         </div>
+        {onSwitchRole && (
+          <button
+            type="button"
+            className="sidebar-switch-role-btn"
+            onClick={() => {
+              if (onClose) onClose();
+              onSwitchRole();
+            }}
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>Switch Role</span>
+          </button>
+        )}
       </div>
     </aside>
   );

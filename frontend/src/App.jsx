@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import WelcomeScreen from './components/WelcomeScreen';
+import StudentPortal from './components/student/StudentPortal';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import LoginPage from './components/LoginPage';
@@ -12,19 +14,35 @@ import './App.css';
  * App Component
  *
  * Top-level container. Manages:
- *   1. currentView   — 'login' | 'dashboard'
+ *   1. currentView   — 'welcome' | 'parent-login' | 'parent-dashboard' | 'student-portal'
  *   2. activeTab     — 'overview' | 'devices' | 'sessions' | 'reports'
  *   3. isSidebarOpen — mobile drawer open/closed (ignored on desktop via CSS)
  */
 function App() {
-  const [currentView, setCurrentView] = useState('login');
+  const [currentView, setCurrentView] = useState('welcome');
   const [activeTab, setActiveTab] = useState('overview');
 
   // Mobile sidebar drawer state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  function handleSelectRole(role) {
+    if (role === 'parent') {
+      setCurrentView('parent-login');
+    } else if (role === 'student') {
+      setCurrentView('student-portal');
+    }
+  }
+
+  function handleBackToWelcome() {
+    setCurrentView('welcome');
+  }
+
   function handleLoginSuccess() {
-    setCurrentView('dashboard');
+    setCurrentView('parent-dashboard');
+  }
+
+  function handleSwitchRole() {
+    setCurrentView('welcome');
   }
 
   function handleMenuClick() {
@@ -39,9 +57,24 @@ function App() {
     setActiveTab(tabId);
   }
 
-  // --- Login view ---
-  if (currentView === 'login') {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  // --- 1. Welcome Screen (Default View) ---
+  if (currentView === 'welcome') {
+    return <WelcomeScreen onSelectRole={handleSelectRole} />;
+  }
+
+  // --- 2. Student Portal Experience ---
+  if (currentView === 'student-portal') {
+    return <StudentPortal onSwitchRole={handleBackToWelcome} />;
+  }
+
+  // --- 3. Parent Login View ---
+  if (currentView === 'parent-login') {
+    return (
+      <LoginPage
+        onLoginSuccess={handleLoginSuccess}
+        onBackToWelcome={handleBackToWelcome}
+      />
+    );
   }
 
   // Dynamic header copy based on current section
@@ -77,6 +110,7 @@ function App() {
         isOpen={isSidebarOpen}
         onClose={handleSidebarClose}
         onSelectTab={handleTabSelect}
+        onSwitchRole={handleSwitchRole}
       />
 
       {/* Main Content Area */}
@@ -85,6 +119,7 @@ function App() {
           title={headerTitle}
           subtitle={headerSubtitle}
           onMenuClick={handleMenuClick}
+          onSwitchRole={handleSwitchRole}
         />
 
         <main className="dashboard-content">

@@ -15,7 +15,7 @@ const DEMO_PASSWORD = 'Demo1234';
  * On successful demo login, calls `onLoginSuccess()` so App.jsx
  * can switch to the dashboard view.
  */
-function LoginPage({ onLoginSuccess }) {
+function LoginPage({ onLoginSuccess, onBackToWelcome }) {
   // --- Controlled input state ---
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -167,6 +167,31 @@ function LoginPage({ onLoginSuccess }) {
       {/* Right form panel */}
       <div className="login-form-panel">
         <div className="login-form-card">
+          {onBackToWelcome && (
+            <button
+              type="button"
+              className="login-back-btn"
+              onClick={onBackToWelcome}
+              aria-label="Back to role selection"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+              <span>Back to Role Selection</span>
+            </button>
+          )}
+
           {/* Card heading */}
           <div className="login-form-header">
             <h2 className="login-form-title">Parent Sign In</h2>
