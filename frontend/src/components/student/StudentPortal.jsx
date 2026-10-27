@@ -5,6 +5,8 @@ import StudentHistory from './StudentHistory';
 import StudentProgress from './StudentProgress';
 import StudentGoals from './StudentGoals';
 import StudentSettings from './StudentSettings';
+import { getStoredToken } from '../../services/auth';
+import { fetchStudentPairingStatus } from '../../services/pairing';
 import './StudentPortal.css';
 
 /**
@@ -21,21 +23,50 @@ import './StudentPortal.css';
  * Props:
  *   onSwitchRole — callback to return to the Welcome / Role Selection screen
  */
-function StudentPortal({ onSwitchRole }) {
+function StudentPortal({ onSwitchRole, currentUser, onGoToLogin }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [pairingData, setPairingData] = useState(null);
 
-  // Student Profile
-  const [studentProfile] = useState({
-    name: 'Liam Jenkins',
-    role: 'Student / Learner',
-    grade: 'Grade 7',
-    school: 'Lincoln Middle School',
-    studentId: 'STU-8821',
-    initials: 'LJ',
-    device: "Liam's Laptop (MacBook Air)",
-  });
+  // Load real pairing data when student is authenticated
+  useEffect(() => {
+    let isMounted = true;
+    const token = getStoredToken();
+    if (!token || !currentUser) return;
+
+    fetchStudentPairingStatus(token)
+      .then((data) => {
+        if (isMounted) setPairingData(data);
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser]);
+
+  // Derive dynamic profile from authenticated account details
+  const studentDisplayName = currentUser?.displayName || (currentUser ? 'Student' : 'Guest Student (Demo)');
+  const studentInitials = currentUser?.displayName
+    ? currentUser.displayName
+        .split(' ')
+        .filter(Boolean)
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    : (currentUser ? 'ST' : 'GS');
+
+  const studentProfile = {
+    name: studentDisplayName,
+    role: currentUser ? 'Authenticated Student' : 'Student / Learner (Demo Mode)',
+    grade: pairingData?.profile?.grade || (currentUser ? (pairingData?.isPaired ? 'Enrolled Student' : 'Grade Not Set') : 'Grade 7 (Demo)'),
+    school: pairingData?.profile?.school || (currentUser ? (pairingData?.isPaired ? 'Connected School' : 'School Not Set') : 'Lincoln Middle School (Demo)'),
+    studentId: currentUser?.id ? `STU-${currentUser.id.slice(0, 4).toUpperCase()}` : 'STU-DEMO',
+    initials: studentInitials,
+    device: pairingData?.device?.name || (currentUser ? (pairingData?.isPaired ? 'Student Device' : 'No device paired') : 'Demo Laptop'),
+  };
 
   // Daily Study Goal Target (in minutes). Default: 120 mins (2 hours)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(120);
@@ -576,6 +607,8 @@ function StudentPortal({ onSwitchRole }) {
 
           {activeTab === 'session' && (
             <StudentTimer
+              profile={studentProfile}
+              deviceName={studentProfile.device}
               timerState={timerState}
               elapsedSeconds={elapsedSeconds}
               onStartTimer={handleStartTimer}
@@ -618,6 +651,9 @@ function StudentPortal({ onSwitchRole }) {
               dailyGoalMinutes={dailyGoalMinutes}
               sessionsCount={sessions.length}
               onSwitchRole={handleExitAttempt}
+              currentUser={currentUser}
+              onGoToLogin={onGoToLogin}
+              onPairingUpdated={(newStatus) => setPairingData(newStatus)}
             />
           )}
         </main>

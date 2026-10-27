@@ -34,7 +34,10 @@ function StudentHistory({ sessions, onStartNewSession }) {
       {/* 1. Header Toolbar */}
       <div className="history-toolbar">
         <div className="toolbar-info">
-          <h2 className="history-title">Session History</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+            <h2 className="history-title" style={{ margin: 0 }}>Session History</h2>
+            <span className="kpi-demo-badge" title="Historical demonstration records">Demo Records</span>
+          </div>
           <p className="history-subtitle">
             {filteredSessions.length} sessions logged &bull; {Math.floor(totalFilteredMinutes / 60)}h{' '}
             {totalFilteredMinutes % 60}m total focused time

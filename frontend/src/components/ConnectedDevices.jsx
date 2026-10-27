@@ -1,75 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { getStoredToken } from '../services/auth';
+import { requestPairingCode, fetchParentDevices, decommissionDevice } from '../services/pairing';
 import './ConnectedDevices.css';
 
 /**
  * ConnectedDevices Component
  *
  * Dedicated view for managing supervised family hardware.
- * Features:
- *   - Fictional demo devices: Liam's Laptop, Study PC, and Tablet
- *   - Status pills (Online / Offline) with pulsing indicators
- *   - Detailed device telemetry (User, Session, Last Sync, Battery/Power, Network)
- *   - Quick filter buttons (All, Online, Offline)
- *   - Interactive "Connect Device" pairing-code simulator modal
+ * Displays real devices paired to the authenticated parent account via PostgreSQL backend.
+ * Provides a modal to generate single-use, 10-minute pairing codes.
  */
 function ConnectedDevices() {
-  // Demo dataset for the 3 supervised devices
-  const [devices] = useState([
-    {
-      id: 'dev-1',
-      name: "Liam's Laptop",
-      deviceType: 'laptop',
-      model: 'MacBook Air · macOS Sonoma',
-      status: 'online',
-      user: 'Liam (Child Profile)',
-      lastSync: 'Active now',
-      ip: '192.168.1.104',
-      battery: '88% · Charging',
-      agentVersion: 'v1.4.2 (Demo)',
-      session: {
-        active: true,
-        name: 'Focus Block: Math & Homework',
-        duration: '42m active',
-      },
-      deviceCode: 'DEV-LL-8401',
-    },
-    {
-      id: 'dev-2',
-      name: 'Study PC',
-      deviceType: 'desktop',
-      model: 'Desktop Tower · Windows 11',
-      status: 'online',
-      user: 'Shared Family Room',
-      lastSync: '2m ago',
-      ip: '192.168.1.108',
-      battery: 'Direct AC Power',
-      agentVersion: 'v1.4.2 (Demo)',
-      session: {
-        active: false,
-        name: 'Idle · Ready for Session',
-        duration: 'Screen Off',
-      },
-      deviceCode: 'DEV-SPC-1092',
-    },
-    {
-      id: 'dev-3',
-      name: 'Tablet',
-      deviceType: 'tablet',
-      model: 'iPad 10th Gen · iPadOS 17',
-      status: 'offline',
-      user: 'Emma (Child Profile)',
-      lastSync: 'Yesterday, 7:45 PM',
-      ip: '192.168.1.115',
-      battery: '64% Battery',
-      agentVersion: 'v1.4.0 (Demo)',
-      session: {
-        active: false,
-        name: 'Standby / Locked',
-        duration: 'No active session',
-      },
-      deviceCode: 'DEV-TAB-3310',
-    },
-  ]);
+  const [devices, setDevices] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   // Filter state: 'all' | 'online' | 'offline'
   const [filter, setFilter] = useState('all');
@@ -77,42 +21,136 @@ function ConnectedDevices() {
   // Pairing Modal state
   const [isPairingOpen, setIsPairingOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [pairingSimulatedSuccess, setPairingSimulatedSuccess] = useState(false);
-  const demoPairingCode = 'COACH-7492';
+  const [pairingCode, setPairingCode] = useState('');
+  const [pairingExpiresAt, setPairingExpiresAt] = useState('');
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+  const [pairingError, setPairingError] = useState('');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Close modal on Escape key press
+  // Decommission modal / action state
+  const [deviceToDecommission, setDeviceToDecommission] = useState(null);
+  const [isDecommissioning, setIsDecommissioning] = useState(false);
+  const [decommissionError, setDecommissionError] = useState('');
+  const [actionFeedback, setActionFeedback] = useState('');
+
+  // Load parent devices from backend API
   useEffect(() => {
-    function handleKeyDown(e) {
-      if (e.key === 'Escape' && isPairingOpen) {
-        handleCloseModal();
+    let isMounted = true;
+
+    async function load() {
+      const token = getStoredToken();
+      if (!token) {
+        if (isMounted) setIsLoading(false);
+        return;
+      }
+
+      try {
+        const data = await fetchParentDevices(token);
+        if (isMounted) {
+          setDevices(data.devices || []);
+          setLoadError('');
+        }
+      } catch (err) {
+        if (isMounted) {
+          setLoadError(err.message || 'Failed to load devices.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPairingOpen]);
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshTrigger]);
+
+  // Handle generating a new pairing code
+  const handleGenerateCode = useCallback(async () => {
+    const token = getStoredToken();
+    if (!token) {
+      setPairingError('Please sign in to generate pairing codes.');
+      return;
+    }
+
+    try {
+      setIsGeneratingCode(true);
+      setPairingError('');
+      const data = await requestPairingCode(token);
+      setPairingCode(data.code);
+      setPairingExpiresAt(data.expiresAt);
+    } catch (err) {
+      setPairingError(err.message || 'Failed to generate code.');
+    } finally {
+      setIsGeneratingCode(false);
+    }
+  }, []);
 
   function handleOpenModal() {
     setIsPairingOpen(true);
-    setPairingSimulatedSuccess(false);
     setIsCopied(false);
+    setPairingError('');
+    handleGenerateCode();
   }
 
   function handleCloseModal() {
     setIsPairingOpen(false);
-    setPairingSimulatedSuccess(false);
     setIsCopied(false);
+    setPairingError('');
+    // Trigger refresh of device list
+    setRefreshTrigger((prev) => prev + 1);
   }
 
+  async function handleDecommissionConfirm() {
+    if (!deviceToDecommission) return;
+    const token = getStoredToken();
+    if (!token) {
+      setDecommissionError('Please sign in to manage devices.');
+      return;
+    }
+
+    try {
+      setIsDecommissioning(true);
+      setDecommissionError('');
+      await decommissionDevice(token, deviceToDecommission.id);
+      setActionFeedback(`Device "${deviceToDecommission.name}" was decommissioned successfully.`);
+      setDeviceToDecommission(null);
+      setRefreshTrigger((prev) => prev + 1);
+      setTimeout(() => setActionFeedback(''), 4000);
+    } catch (err) {
+      setDecommissionError(err.message || 'Failed to decommission device.');
+    } finally {
+      setIsDecommissioning(false);
+    }
+  }
+
+  // Close modal on Escape key press
+  useEffect(() => {
+    if (!isPairingOpen) return;
+
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        setIsPairingOpen(false);
+        setIsCopied(false);
+        setPairingError('');
+        setRefreshTrigger((prev) => prev + 1);
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPairingOpen]);
+
   function handleCopyCode() {
+    if (!pairingCode) return;
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(demoPairingCode).catch(() => {});
+      navigator.clipboard.writeText(pairingCode).catch(() => {});
     }
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2200);
-  }
-
-  function handleSimulateConnect() {
-    setPairingSimulatedSuccess(true);
   }
 
   // Filter devices list based on selected filter tab
@@ -144,6 +182,14 @@ function ConnectedDevices() {
         </svg>
       );
     }
+    if (type === 'phone') {
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="5" y="2" width="14" height="20" rx="2" />
+          <line x1="12" y1="18" x2="12.01" y2="18" />
+        </svg>
+      );
+    }
     // Default: Laptop
     return (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -155,18 +201,18 @@ function ConnectedDevices() {
 
   return (
     <section className="devices-view" aria-label="Connected Devices Management">
-      {/* 1. Header with title, demo disclaimer, and Connect Device CTA */}
+      {/* 1. Header with title and Connect Device CTA */}
       <div className="devices-header-row">
         <div className="devices-header-left">
           <div className="devices-heading-wrap">
             <h2 className="devices-view-title">Connected Devices</h2>
-            <span className="devices-demo-badge" title="Hardware data is simulated demonstration data">
+            <span className="devices-demo-badge" title="Live devices connected to your parent account">
               <span className="devices-demo-dot" aria-hidden="true" />
-              Fictional Demo Hardware
+              PostgreSQL Telemetry
             </span>
           </div>
           <p className="devices-view-description">
-            Supervised devices linked to your parent account for study session monitoring and coaching.
+            Supervised hardware paired to your parent account for study session monitoring and coaching.
           </p>
         </div>
 
@@ -217,226 +263,347 @@ function ConnectedDevices() {
         </div>
 
         <span className="devices-stats-summary">
-          Showing {filteredDevices.length} of {devices.length} demo devices
+          Showing {filteredDevices.length} of {devices.length} registered devices
         </span>
       </div>
 
-      {/* 3. Devices Grid */}
-      <div className="devices-grid">
-        {filteredDevices.map((device) => {
-          const isOnline = device.status === 'online';
+      {/* 3. Loading and Error States */}
+      {isLoading && (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+          <p>Loading devices from database…</p>
+        </div>
+      )}
 
-          return (
-            <article
-              key={device.id}
-              className="device-card"
-              aria-label={`${device.name} - ${isOnline ? 'Online' : 'Offline'}`}
-            >
-              {/* Card Header: Device icon, name, model, and status badge */}
-              <div className="device-card-header">
-                <div className="device-card-identity">
-                  <div className={`device-type-icon ${!isOnline ? 'offline' : ''}`}>
-                    {renderDeviceIcon(device.deviceType)}
+      {loadError && (
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '14px 18px', borderRadius: '8px', color: '#fca5a5' }}>
+          <p style={{ margin: 0 }}>{loadError}</p>
+        </div>
+      )}
+
+      {actionFeedback && (
+        <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '12px 18px', borderRadius: '8px', color: '#6ee7b7', fontSize: '13px' }}>
+          {actionFeedback}
+        </div>
+      )}
+
+      {/* 4. Empty State */}
+      {!isLoading && !loadError && devices.length === 0 && (
+        <div style={{
+          textAlign: 'center',
+          padding: '48px 24px',
+          background: 'var(--bg-surface, #1e293b)',
+          border: '1px dashed var(--border-color, #334155)',
+          borderRadius: '12px',
+        }}>
+          <div style={{ fontSize: '36px', marginBottom: '12px' }}>💻</div>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
+            No Devices Paired Yet
+          </h3>
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', maxWidth: '420px', margin: '0 auto 20px auto', lineHeight: '1.5' }}>
+            Click <strong>Connect Device</strong> above to generate a 10-minute pairing code for your student’s computer.
+          </p>
+          <button
+            type="button"
+            className="connect-device-btn"
+            onClick={handleOpenModal}
+            style={{ margin: '0 auto' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>Connect First Device</span>
+          </button>
+        </div>
+      )}
+
+      {/* 5. Devices Grid */}
+      {!isLoading && !loadError && filteredDevices.length > 0 && (
+        <div className="devices-grid">
+          {filteredDevices.map((device) => {
+            const isOnline = device.status === 'online';
+
+            return (
+              <article
+                key={device.id}
+                className="device-card"
+                aria-label={`${device.name} - ${isOnline ? 'Online' : 'Offline'}`}
+              >
+                {/* Card Header: Device icon, name, model, and status badge */}
+                <div className="device-card-header">
+                  <div className="device-card-identity">
+                    <div className={`device-type-icon ${!isOnline ? 'offline' : ''}`}>
+                      {renderDeviceIcon(device.deviceType)}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <h3 className="device-card-name">{device.name}</h3>
+                      <p className="device-card-model">
+                        {device.model || `${device.deviceType.charAt(0).toUpperCase() + device.deviceType.slice(1)}`}
+                      </p>
+                    </div>
                   </div>
-                  <div className="device-name-wrap">
-                    <h3 className="device-name">{device.name}</h3>
-                    <span className="device-type-name">{device.model}</span>
-                  </div>
-                </div>
 
-                <span className={`device-status-badge ${isOnline ? 'online' : 'offline'}`}>
-                  <span className="status-live-indicator" aria-hidden="true" />
-                  {isOnline ? 'Online' : 'Offline'}
-                </span>
-              </div>
-
-              {/* Card Body: User profile, session box, sync time, network & battery */}
-              <div className="device-card-body">
-                <div className="device-info-row">
-                  <span className="device-info-label">Assigned Profile</span>
-                  <span className="device-info-value">{device.user}</span>
-                </div>
-
-                <div className="device-session-box">
-                  <div className="device-session-label">Session Status</div>
-                  <div className="device-session-name">
-                    <span>{device.session.name}</span>
-                    <span className="device-session-duration">{device.session.duration}</span>
-                  </div>
-                </div>
-
-                <div className="device-info-row">
-                  <span className="device-info-label">Last Sync</span>
-                  <span className={`device-info-value ${isOnline ? 'active-highlight' : ''}`}>
-                    {device.lastSync}
+                  <span
+                    className={`device-status-badge ${isOnline ? 'status-online' : 'status-offline'}`}
+                    role="status"
+                  >
+                    <span className="status-indicator-dot" aria-hidden="true" />
+                    <span>{isOnline ? 'Online' : 'Offline'}</span>
                   </span>
                 </div>
 
-                <div className="device-info-row">
-                  <span className="device-info-label">Power / Battery</span>
-                  <span className="device-info-value">{device.battery}</span>
+                {/* Card Body: Paired Student and Metadata */}
+                <div className="device-card-body">
+                  <div className="device-detail-row">
+                    <span className="detail-key">Assigned Student</span>
+                    <span className="detail-val highlight-user">
+                      {device.studentName ? `${device.studentName} (${device.studentInitials || 'Student'})` : 'Unassigned'}
+                    </span>
+                  </div>
+
+                  <div className="device-detail-row">
+                    <span className="detail-key">Device Code</span>
+                    <span className="detail-val">
+                      <code style={{ fontSize: '12px' }}>{device.deviceCode || 'Pending Sync'}</code>
+                    </span>
+                  </div>
+
+                  <div className="device-detail-row">
+                    <span className="detail-key">Monitoring Status</span>
+                    <span className="detail-val">
+                      {isOnline ? 'Active Session' : 'Offline · Awaiting Session'}
+                    </span>
+                  </div>
+
+                  <div className="device-detail-row">
+                    <span className="detail-key">Paired Date</span>
+                    <span className="detail-val">
+                      {device.createdAt ? new Date(device.createdAt).toLocaleDateString() : 'Recently'}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="device-info-row">
-                  <span className="device-info-label">Local IP (Demo)</span>
-                  <span className="device-info-value">{device.ip}</span>
+                {/* Card Footer: Decommission / Disconnect */}
+                <div className="device-card-actions">
+                  <button
+                    type="button"
+                    className="btn-decommission-action"
+                    onClick={() => {
+                      setDecommissionError('');
+                      setDeviceToDecommission(device);
+                    }}
+                    title={`Decommission ${device.name}`}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    <span>Decommission</span>
+                  </button>
                 </div>
-              </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
 
-              {/* Card Footer: Device code and simulated action */}
-              <div className="device-card-footer">
-                <span className="device-id-code">ID: {device.deviceCode}</span>
-                <button
-                  type="button"
-                  className="device-action-link"
-                  onClick={() => alert(`Fictional Demo: Device settings for ${device.name} will be configurable in a future stage.`)}
-                >
-                  Configure · Demo
-                </button>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-
-      {/* 4. Pairing Code Simulator Modal */}
+      {/* 6. Interactive Pairing Modal */}
       {isPairingOpen && (
         <div
-          className="pairing-backdrop"
-          onClick={handleCloseModal}
-          role="presentation"
+          className="pairing-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pairing-modal-title"
         >
-          <div
-            className="pairing-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="pairing-modal-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close button (✕) */}
-            <button
-              type="button"
-              className="pairing-close-btn"
-              onClick={handleCloseModal}
-              aria-label="Close pairing modal"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-
+          <div className="pairing-modal-card">
             {/* Modal Header */}
             <div className="pairing-modal-header">
-              <div className="pairing-badge-row">
-                <span className="devices-demo-badge">
-                  <span className="devices-demo-dot" aria-hidden="true" />
-                  Pairing Simulator
-                </span>
+              <div>
+                <h3 id="pairing-modal-title" className="pairing-modal-title">
+                  Connect Student Device
+                </h3>
+                <p className="pairing-modal-subtitle">
+                  Generate a one-time pairing code to link a child’s computer.
+                </p>
               </div>
-              <h3 id="pairing-modal-title" className="pairing-modal-title">
-                Connect a Supervised Device
-              </h3>
-              <p className="pairing-modal-subtitle">
-                Link a child’s laptop, PC, or tablet to enable parent supervision and study focus tracking.
-              </p>
+              <button
+                type="button"
+                className="pairing-modal-close-btn"
+                onClick={handleCloseModal}
+                aria-label="Close modal"
+              >
+                &times;
+              </button>
             </div>
 
-            {/* Normal flow vs simulated success */}
-            {!pairingSimulatedSuccess ? (
-              <>
-                {/* Step-by-step instructions */}
-                <div className="pairing-steps-list">
-                  <div className="pairing-step-item">
-                    <span className="pairing-step-number">1</span>
-                    <span>Install and open <strong>AI Productivity Coach</strong> on your child’s device.</span>
-                  </div>
-                  <div className="pairing-step-item">
-                    <span className="pairing-step-number">2</span>
-                    <span>Select <strong>“Connect to Parent Dashboard”</strong> when prompted.</span>
-                  </div>
-                  <div className="pairing-step-item">
-                    <span className="pairing-step-number">3</span>
-                    <span>Enter this one-time pairing code into the prompt:</span>
-                  </div>
+            {/* Modal Body */}
+            <div className="pairing-modal-body">
+              {/* Steps instructions */}
+              <div className="pairing-steps-list">
+                <div className="pairing-step-item">
+                  <span className="pairing-step-number">1</span>
+                  <span>Have your student open <strong>AI Productivity Coach</strong> and go to the Student Portal.</span>
                 </div>
-
-                {/* Pairing Code Card */}
-                <div className="pairing-code-box">
-                  <span className="pairing-code-label">One-Time Pairing Code</span>
-                  <div className="pairing-code-digits">{demoPairingCode}</div>
-
-                  <div className="pairing-code-actions">
-                    <button
-                      type="button"
-                      className={`copy-code-btn ${isCopied ? 'copied' : ''}`}
-                      onClick={handleCopyCode}
-                    >
-                      {isCopied ? (
-                        <>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          <span>Copied to Clipboard!</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
-                          <span>Copy Code</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  <span className="pairing-expiry-text">
-                    Code valid for 10 minutes (Demo simulation)
-                  </span>
+                <div className="pairing-step-item">
+                  <span className="pairing-step-number">2</span>
+                  <span>Open <strong>Settings &rarr; Device &amp; Supervision Status</strong> on their device.</span>
                 </div>
-
-                {/* Modal Footer */}
-                <div className="pairing-modal-footer">
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={handleCloseModal}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-simulate"
-                    onClick={handleSimulateConnect}
-                  >
-                    Simulate Device Paired
-                  </button>
-                </div>
-              </>
-            ) : (
-              /* Success confirmation state */
-              <div className="pairing-success-box">
-                <div className="pairing-success-icon" aria-hidden="true">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <h4 className="pairing-success-title">Device Paired Successfully (Demo)</h4>
-                <p className="pairing-success-desc">
-                  Simulation complete! In the live application with backend connectivity, your new device will automatically appear in this list and begin broadcasting session telemetry.
-                </p>
-                <div className="pairing-modal-footer" style={{ width: '100%', justifyContent: 'center' }}>
-                  <button
-                    type="button"
-                    className="btn-simulate"
-                    onClick={handleCloseModal}
-                  >
-                    Done
-                  </button>
+                <div className="pairing-step-item">
+                  <span className="pairing-step-number">3</span>
+                  <span>Enter this one-time code to link their account and computer:</span>
                 </div>
               </div>
-            )}
+
+              {pairingError && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '10px 14px', borderRadius: '6px', color: '#fca5a5', fontSize: '13px', marginBottom: '14px' }}>
+                  {pairingError}
+                </div>
+              )}
+
+              {/* Pairing Code Card */}
+              <div className="pairing-code-box">
+                <span className="pairing-code-label">One-Time Pairing Code</span>
+                <div className="pairing-code-digits" style={{ letterSpacing: '2px', fontFamily: 'monospace' }}>
+                  {isGeneratingCode ? 'GENERATING…' : (pairingCode || '---- ---- ----')}
+                </div>
+
+                <div className="pairing-code-actions">
+                  <button
+                    type="button"
+                    className={`copy-code-btn ${isCopied ? 'copied' : ''}`}
+                    onClick={handleCopyCode}
+                    disabled={isGeneratingCode || !pairingCode}
+                  >
+                    {isCopied ? (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        <span>Copied to Clipboard!</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                        <span>Copy Code</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleGenerateCode}
+                    disabled={isGeneratingCode}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid var(--border-color, #475569)',
+                      color: 'var(--text-secondary, #94a3b8)',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Generate New Code
+                  </button>
+                </div>
+
+                <span className="pairing-expiry-text">
+                  {pairingExpiresAt
+                    ? `Code valid for 10 minutes (expires at ${new Date(pairingExpiresAt).toLocaleTimeString()})`
+                    : 'Code valid for 10 minutes · Single-use only'}
+                </span>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="pairing-modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleCloseModal}
+                >
+                  Close &amp; Refresh Devices
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. Decommission Confirmation Modal */}
+      {deviceToDecommission && (
+        <div
+          className="pairing-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="decommission-modal-title"
+        >
+          <div className="pairing-modal-card" style={{ maxWidth: '440px' }}>
+            <div className="pairing-modal-header">
+              <div>
+                <h3 id="decommission-modal-title" className="pairing-modal-title">
+                  Decommission Device
+                </h3>
+                <p className="pairing-modal-subtitle">
+                  Safely disconnect hardware from parental supervision.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="pairing-modal-close-btn"
+                onClick={() => setDeviceToDecommission(null)}
+                disabled={isDecommissioning}
+                aria-label="Close modal"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="pairing-modal-body">
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 16px 0' }}>
+                Are you sure you want to decommission <strong>{deviceToDecommission.name}</strong> ({deviceToDecommission.deviceCode || 'Device'})?
+              </p>
+
+              <div style={{ background: 'rgba(234, 179, 8, 0.08)', border: '1px solid rgba(234, 179, 8, 0.25)', borderRadius: '8px', padding: '12px 14px', fontSize: '13px', color: '#fde047', lineHeight: '1.5', marginBottom: '16px' }}>
+                This device will be removed from your active devices inventory. Historical study sessions and focus reports remain fully preserved. The student account remains active and paired.
+              </div>
+
+              {decommissionError && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', padding: '10px 14px', color: '#fca5a5', fontSize: '13px', marginBottom: '14px' }}>
+                  {decommissionError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setDeviceToDecommission(null)}
+                  disabled={isDecommissioning}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    background: '#ef4444',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '9px 18px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: isDecommissioning ? 'not-allowed' : 'pointer',
+                  }}
+                  onClick={handleDecommissionConfirm}
+                  disabled={isDecommissioning}
+                >
+                  {isDecommissioning ? 'Decommissioning…' : 'Yes, Decommission'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

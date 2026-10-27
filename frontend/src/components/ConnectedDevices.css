@@ -636,6 +636,47 @@
   background-color: var(--primary-hover);
 }
 
+/* Device Card Actions & Decommission */
+.device-card-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 2px 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+.device-card-actions {
+  border-top: 1px solid var(--border-light, #334155);
+  padding: 10px 16px;
+  display: flex;
+  justify-content: flex-end;
+  background-color: rgba(15, 23, 42, 0.4);
+}
+
+.btn-decommission-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-decommission-action:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+
 /* ==========================================================================
    RESPONSIVE BREAKPOINTS
    ========================================================================== */

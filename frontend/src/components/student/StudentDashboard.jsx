@@ -199,7 +199,10 @@ function StudentDashboard({
         <section className="student-card-panel" aria-label="Recent Study Sessions">
           <div className="panel-header">
             <div>
-              <h3 className="panel-title">Recent Study Sessions</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                <h3 className="panel-title" style={{ margin: 0 }}>Recent Study Sessions</h3>
+                <span className="kpi-demo-badge" title="Simulated demonstration session records">Demo Data</span>
+              </div>
               <p className="panel-subtitle">Your latest logged study sessions and focus ratings</p>
             </div>
             <button
@@ -246,7 +249,10 @@ function StudentDashboard({
         <section className="student-card-panel" aria-label="Weekly Study-Time Overview">
           <div className="panel-header">
             <div>
-              <h3 className="panel-title">Weekly Study Overview</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                <h3 className="panel-title" style={{ margin: 0 }}>Weekly Study Overview</h3>
+                <span className="kpi-demo-badge" title="Simulated weekly study hours trend">Demo Data</span>
+              </div>
               <p className="panel-subtitle">Study hours logged over the last 7 days</p>
             </div>
             <span className="panel-badge-secondary">Mon – Sun</span>

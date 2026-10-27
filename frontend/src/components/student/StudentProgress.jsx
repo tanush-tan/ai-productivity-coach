@@ -66,7 +66,7 @@ function StudentProgress({ sessions, dailyGoalMinutes, todayStudyMinutes }) {
       {/* 1. Header Banner with Distinction Disclaimer */}
       <div className="progress-header-card">
         <div className="progress-header-text">
-          <span className="progress-badge">Study Analytics</span>
+          <span className="progress-badge">Study Analytics &bull; Demo Baseline</span>
           <h2 className="progress-title">My Focus &amp; Progress</h2>
           <p className="progress-subtitle">
             Review your study habits, subject time allocation, and daily milestone consistency.

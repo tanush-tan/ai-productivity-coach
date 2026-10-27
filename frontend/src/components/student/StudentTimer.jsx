@@ -14,6 +14,8 @@ import './StudentTimer.css';
  *   - Clear disclaimer that tracking is self-directed and manual
  */
 function StudentTimer({
+  profile,
+  deviceName,
   timerState,
   elapsedSeconds,
   onStartTimer,
@@ -156,7 +158,9 @@ function StudentTimer({
               <span className="active-subject-badge">{timerState.subject}</span>
             </div>
 
-            <span className="active-device-note">Supervised on {selectedSubject}</span>
+            <span className="active-device-note">
+              Supervised on {deviceName || profile?.device || 'Student Device'}
+            </span>
           </div>
 
           {timerState.goal && (

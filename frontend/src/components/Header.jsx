@@ -12,13 +12,23 @@
 function Header({
   title = 'Parent Dashboard',
   subtitle = 'Supervision & Device Sessions',
+  currentUser,
   onMenuClick,
   onSwitchRole,
 }) {
+  const displayName = currentUser?.displayName || currentUser?.display_name || 'Sarah Jenkins';
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'SJ';
+
   const parentProfile = {
-    name: 'Sarah Jenkins',
-    role: 'Parent Admin',
-    initials: 'SJ',
+    name: displayName,
+    role: currentUser ? 'Parent Admin' : 'Parent Admin',
+    initials,
   };
 
   return (
@@ -61,7 +71,9 @@ function Header({
       {/* Parent Profile Placeholder */}
       <div className="header-profile">
         {/* Badge and name hidden on small screens; avatar always visible */}
-        <div className="profile-badge header-hide-mobile">Demo Mode</div>
+        <div className="profile-badge header-hide-mobile">
+          {currentUser ? 'Authenticated' : 'Demo Mode'}
+        </div>
         <div className="profile-info header-hide-mobile">
           <span className="profile-name">{parentProfile.name}</span>
           <span className="profile-role">{parentProfile.role}</span>

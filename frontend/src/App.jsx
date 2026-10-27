@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import WelcomeScreen from './components/WelcomeScreen';
 import StudentPortal from './components/student/StudentPortal';
 import Sidebar from './components/Sidebar';
@@ -8,6 +8,7 @@ import SummaryCards from './components/SummaryCards';
 import ConnectedDevices from './components/ConnectedDevices';
 import MonitoringSessions from './components/MonitoringSessions';
 import OverallReports from './components/OverallReports';
+import { getStoredToken, fetchCurrentUser, removeStoredToken } from './services/auth';
 import './App.css';
 
 /**
@@ -17,19 +18,72 @@ import './App.css';
  *   1. currentView   — 'welcome' | 'parent-login' | 'parent-dashboard' | 'student-portal'
  *   2. activeTab     — 'overview' | 'devices' | 'sessions' | 'reports'
  *   3. isSidebarOpen — mobile drawer open/closed (ignored on desktop via CSS)
+ *   4. currentUser   — authenticated user profile from backend (/api/auth/me)
  */
 function App() {
   const [currentView, setCurrentView] = useState('welcome');
   const [activeTab, setActiveTab] = useState('overview');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // Mobile sidebar drawer state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Verify stored session on initial load
+  useEffect(() => {
+    let isMounted = true;
+
+    async function initializeAuth() {
+      const token = getStoredToken();
+      if (!token) {
+        if (isMounted) setIsInitializing(false);
+        return;
+      }
+
+      try {
+        const data = await fetchCurrentUser(token);
+        if (isMounted) {
+          if (data.user?.role === 'parent') {
+            setCurrentUser(data.user);
+            setCurrentView('parent-dashboard');
+          } else if (data.user?.role === 'student') {
+            setCurrentUser(data.user);
+            setCurrentView('student-portal');
+          } else {
+            removeStoredToken();
+          }
+        }
+      } catch {
+        // Expired or invalid token cleared safely
+        removeStoredToken();
+        if (isMounted) {
+          setCurrentUser(null);
+        }
+      } finally {
+        if (isMounted) setIsInitializing(false);
+      }
+    }
+
+    initializeAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   function handleSelectRole(role) {
     if (role === 'parent') {
-      setCurrentView('parent-login');
+      if (currentUser && currentUser.role === 'parent') {
+        setCurrentView('parent-dashboard');
+      } else {
+        setCurrentView('parent-login');
+      }
     } else if (role === 'student') {
-      setCurrentView('student-portal');
+      if (currentUser && currentUser.role === 'student') {
+        setCurrentView('student-portal');
+      } else {
+        setCurrentView('student-login');
+      }
     }
   }
 
@@ -37,11 +91,18 @@ function App() {
     setCurrentView('welcome');
   }
 
-  function handleLoginSuccess() {
-    setCurrentView('parent-dashboard');
+  function handleLoginSuccess(user) {
+    setCurrentUser(user);
+    if (user.role === 'parent') {
+      setCurrentView('parent-dashboard');
+    } else if (user.role === 'student') {
+      setCurrentView('student-portal');
+    }
   }
 
-  function handleSwitchRole() {
+  function handleLogout() {
+    removeStoredToken();
+    setCurrentUser(null);
     setCurrentView('welcome');
   }
 
@@ -57,6 +118,15 @@ function App() {
     setActiveTab(tabId);
   }
 
+  // Loading state while verifying stored session
+  if (isInitializing) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-primary, #0f172a)', color: 'var(--text-secondary, #94a3b8)' }}>
+        <p>Initializing AI Productivity Coach…</p>
+      </div>
+    );
+  }
+
   // --- 1. Welcome Screen (Default View) ---
   if (currentView === 'welcome') {
     return <WelcomeScreen onSelectRole={handleSelectRole} />;
@@ -64,13 +134,32 @@ function App() {
 
   // --- 2. Student Portal Experience ---
   if (currentView === 'student-portal') {
-    return <StudentPortal onSwitchRole={handleBackToWelcome} />;
+    return (
+      <StudentPortal
+        onSwitchRole={handleLogout}
+        currentUser={currentUser}
+        onGoToLogin={() => setCurrentView('student-login')}
+      />
+    );
   }
 
-  // --- 3. Parent Login View ---
+  // --- 3. Student Login / Registration View ---
+  if (currentView === 'student-login') {
+    return (
+      <LoginPage
+        role="student"
+        onLoginSuccess={handleLoginSuccess}
+        onBackToWelcome={handleBackToWelcome}
+        onContinueGuest={() => setCurrentView('student-portal')}
+      />
+    );
+  }
+
+  // --- 4. Parent Login View ---
   if (currentView === 'parent-login') {
     return (
       <LoginPage
+        role="parent"
         onLoginSuccess={handleLoginSuccess}
         onBackToWelcome={handleBackToWelcome}
       />
@@ -110,7 +199,7 @@ function App() {
         isOpen={isSidebarOpen}
         onClose={handleSidebarClose}
         onSelectTab={handleTabSelect}
-        onSwitchRole={handleSwitchRole}
+        onSwitchRole={handleLogout}
       />
 
       {/* Main Content Area */}
@@ -118,8 +207,9 @@ function App() {
         <Header
           title={headerTitle}
           subtitle={headerSubtitle}
+          currentUser={currentUser}
           onMenuClick={handleMenuClick}
-          onSwitchRole={handleSwitchRole}
+          onSwitchRole={handleLogout}
         />
 
         <main className="dashboard-content">

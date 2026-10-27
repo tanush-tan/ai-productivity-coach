@@ -1,24 +1,24 @@
 import { useState } from 'react';
+import { loginUser, registerUser, setStoredToken } from '../services/auth';
 import './LoginPage.css';
-
-// Demo-only credentials. No real authentication is performed.
-const DEMO_EMAIL = 'parent@demo.com';
-const DEMO_PASSWORD = 'Demo1234';
 
 /**
  * LoginPage Component
  *
- * Renders the first screen a parent sees when opening the app.
- * Handles email + password input, show/hide password toggle,
- * frontend-only validation, and demo credential checking.
- *
- * On successful demo login, calls `onLoginSuccess()` so App.jsx
- * can switch to the dashboard view.
+ * Renders sign-in / registration for Parents or Students.
+ * Validates inputs and authenticates credentials with the backend Express API.
+ * On success, stores the JWT and invokes onLoginSuccess with authenticated user data.
  */
-function LoginPage({ onLoginSuccess, onBackToWelcome }) {
+function LoginPage({ role = 'parent', onLoginSuccess, onBackToWelcome, onContinueGuest }) {
+  const isStudent = role === 'student';
+
+  // --- Auth mode: 'login' | 'register' ---
+  const [authMode, setAuthMode] = useState('login');
+
   // --- Controlled input state ---
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
 
   // --- UI state ---
   const [showPassword, setShowPassword] = useState(false);
@@ -26,6 +26,7 @@ function LoginPage({ onLoginSuccess, onBackToWelcome }) {
 
   // --- Validation error messages ---
   const [errors, setErrors] = useState({
+    displayName: '',
     email: '',
     password: '',
     general: '',
@@ -33,87 +34,104 @@ function LoginPage({ onLoginSuccess, onBackToWelcome }) {
 
   // ------------------------------------------------------------------
   // validate()
-  // Runs all checks in order. Returns true only when every check passes.
-  // Order of precedence:
-  //   1. Empty-field checks (email, then password)
-  //   2. Email format check
-  //   3. Demo credential match  ← checked BEFORE the length rule so that
-  //      a wrong email+valid-length password gives "Incorrect credentials",
-  //      not a misleading "Password too short" message.
-  //   4. Password length (only reached if credentials were not matched)
   // ------------------------------------------------------------------
   function validate() {
-    const nextErrors = { email: '', password: '', general: '' };
+    const nextErrors = { displayName: '', email: '', password: '', general: '' };
     let isValid = true;
 
-    // 1a. Email – required
+    if (authMode === 'register') {
+      if (!displayName.trim() || displayName.trim().length < 2) {
+        nextErrors.displayName = 'Display name must be at least 2 characters.';
+        isValid = false;
+      }
+    }
+
+    // 1. Email – required & basic format
     if (!email.trim()) {
       nextErrors.email = 'Email is required.';
       isValid = false;
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      // 2. Email – basic format
       nextErrors.email = 'Please enter a valid email address.';
       isValid = false;
     }
 
-    // 1b. Password – required
+    // 2. Password – required & min 8 chars for register
     if (!password) {
       nextErrors.password = 'Password is required.';
       isValid = false;
+    } else if (authMode === 'register') {
+      if (password.length < 8) {
+        nextErrors.password = 'Password must be at least 8 characters long.';
+        isValid = false;
+      } else if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+        nextErrors.password = 'Password must contain at least one letter and one number.';
+        isValid = false;
+      }
     }
 
-    // Stop here if either field is empty / malformed — no need to check credentials yet.
-    if (!isValid) {
-      setErrors(nextErrors);
-      return false;
-    }
-
-    // 3. Demo credential match (checked before password-length rule)
-    const emailMatch = email.trim().toLowerCase() === DEMO_EMAIL.toLowerCase();
-    const passwordMatch = password === DEMO_PASSWORD;
-
-    if (!emailMatch || !passwordMatch) {
-      nextErrors.general =
-        'Incorrect email or password. Use the demo credentials below.';
-      setErrors(nextErrors);
-      return false;
-    }
-
-    // All checks passed
     setErrors(nextErrors);
-    return true;
+    return isValid;
   }
 
   // ------------------------------------------------------------------
   // handleSubmit()
-  // Called when the form is submitted. Prevents page reload, runs
-  // validation, and — on success — briefly disables the button before
-  // notifying the parent (App) to switch to the dashboard.
   // ------------------------------------------------------------------
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     if (!validate()) {
       return;
     }
 
-    // Briefly disable the button to prevent double-submission
     setIsSubmitting(true);
-    setTimeout(() => {
+    setErrors((prev) => ({ ...prev, general: '' }));
+
+    try {
+      let data;
+      if (authMode === 'register') {
+        data = await registerUser({
+          email: email.trim(),
+          password,
+          displayName: displayName.trim(),
+          role,
+        });
+      } else {
+        data = await loginUser(email.trim(), password);
+      }
+
+      // Verify that the user has the required role
+      if (data.user?.role !== role) {
+        const expectedRoleName = isStudent ? 'Student' : 'Parent';
+        const otherRoleName = isStudent ? 'Parent' : 'Student';
+        setErrors((prev) => ({
+          ...prev,
+          general: `This sign-in is reserved for ${expectedRoleName} accounts. This account is registered as a ${otherRoleName}.`,
+        }));
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Store authenticated JWT token
+      if (data.token) {
+        setStoredToken(data.token);
+      }
+
+      onLoginSuccess(data.user, data.token);
+    } catch (err) {
+      setErrors((prev) => ({
+        ...prev,
+        general: err.message || 'Authentication failed. Please check your credentials.',
+      }));
+    } finally {
       setIsSubmitting(false);
-      onLoginSuccess();
-    }, 400);
+    }
   }
 
-  // ------------------------------------------------------------------
-  // JSX
-  // ------------------------------------------------------------------
   return (
     <div className="login-page">
       {/* Left branding panel */}
       <div className="login-brand-panel">
         <div className="login-brand-content">
-          {/* Shield icon — inline SVG, no library needed */}
           <div className="login-brand-icon">
             <svg
               width="36"
@@ -132,18 +150,25 @@ function LoginPage({ onLoginSuccess, onBackToWelcome }) {
 
           <h1 className="login-brand-name">AI Productivity Coach</h1>
           <p className="login-brand-tagline">
-            Keep your children focused and safe during every device session.
+            {isStudent
+              ? 'Stay focused and reach your study goals during every computer session.'
+              : 'Keep your children focused and safe during every device session.'}
           </p>
 
-          {/* Feature highlights */}
           <ul className="login-feature-list">
-            {[
-              'Monitor active device sessions in real time',
-              'Review session history and duration reports',
-              'Manage paired devices from one dashboard',
-            ].map((text) => (
+            {(isStudent
+              ? [
+                  'Start distraction-free study blocks',
+                  'Pair your device with parent supervision',
+                  'Track daily focus goals and streak milestones',
+                ]
+              : [
+                  'Generate single-use device pairing codes',
+                  'Monitor connected hardware in real time',
+                  'Review session history and duration reports',
+                ]
+            ).map((text) => (
               <li key={text} className="login-feature-item">
-                {/* Checkmark icon */}
                 <svg
                   width="16"
                   height="16"
@@ -194,23 +219,64 @@ function LoginPage({ onLoginSuccess, onBackToWelcome }) {
 
           {/* Card heading */}
           <div className="login-form-header">
-            <h2 className="login-form-title">Parent Sign In</h2>
+            <h2 className="login-form-title">
+              {isStudent
+                ? authMode === 'register' ? 'Student Registration' : 'Student Sign In'
+                : authMode === 'register' ? 'Parent Registration' : 'Parent Sign In'}
+            </h2>
             <p className="login-form-subtitle">
-              Sign in to access the supervision dashboard.
+              {isStudent
+                ? 'Sign in to access your study portal & link with parent supervision.'
+                : 'Sign in to access the supervision dashboard & pair devices.'}
             </p>
           </div>
 
-          {/* Login form */}
+          {/* Login / Register mode tabs */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border-color, #334155)', paddingBottom: '10px' }}>
+            <button
+              type="button"
+              onClick={() => { setAuthMode('login'); setErrors({ displayName: '', email: '', password: '', general: '' }); }}
+              style={{
+                background: authMode === 'login' ? 'var(--primary-color, #4f46e5)' : 'transparent',
+                color: authMode === 'login' ? '#ffffff' : 'var(--text-secondary, #94a3b8)',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 14px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+              }}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAuthMode('register'); setErrors({ displayName: '', email: '', password: '', general: '' }); }}
+              style={{
+                background: authMode === 'register' ? 'var(--primary-color, #4f46e5)' : 'transparent',
+                color: authMode === 'register' ? '#ffffff' : 'var(--text-secondary, #94a3b8)',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 14px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+              }}
+            >
+              Create Account
+            </button>
+          </div>
+
+          {/* Form */}
           <form
             id="login-form"
             className="login-form"
             onSubmit={handleSubmit}
             noValidate
           >
-            {/* General / credential mismatch error */}
+            {/* General error banner */}
             {errors.general && (
               <div className="login-error-banner" role="alert">
-                {/* Warning icon */}
                 <svg
                   width="16"
                   height="16"
@@ -230,6 +296,29 @@ function LoginPage({ onLoginSuccess, onBackToWelcome }) {
               </div>
             )}
 
+            {/* Display Name field (Registration only) */}
+            {authMode === 'register' && (
+              <div className="login-field-group">
+                <label htmlFor="login-name" className="login-label">
+                  Your Full Name
+                </label>
+                <input
+                  id="login-name"
+                  type="text"
+                  className={`login-input ${errors.displayName ? 'login-input-error' : ''}`}
+                  placeholder={isStudent ? 'e.g. Alex Smith' : 'e.g. Sarah Jenkins'}
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  autoComplete="name"
+                />
+                {errors.displayName && (
+                  <span className="login-field-error" role="alert">
+                    {errors.displayName}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Email field */}
             <div className="login-field-group">
               <label htmlFor="login-email" className="login-label">
@@ -239,18 +328,13 @@ function LoginPage({ onLoginSuccess, onBackToWelcome }) {
                 id="login-email"
                 type="email"
                 className={`login-input ${errors.email ? 'login-input-error' : ''}`}
-                placeholder="parent@demo.com"
+                placeholder={isStudent ? 'student@school.edu' : 'parent@family.com'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                aria-describedby={errors.email ? 'login-email-error' : undefined}
               />
               {errors.email && (
-                <span
-                  id="login-email-error"
-                  className="login-field-error"
-                  role="alert"
-                >
+                <span className="login-field-error" role="alert">
                   {errors.email}
                 </span>
               )}
@@ -266,13 +350,11 @@ function LoginPage({ onLoginSuccess, onBackToWelcome }) {
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   className={`login-input login-password-input ${errors.password ? 'login-input-error' : ''}`}
-                  placeholder="Enter your password"
+                  placeholder={authMode === 'register' ? 'Min 8 characters (letters & numbers)' : 'Enter your password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  aria-describedby={errors.password ? 'login-password-error' : undefined}
+                  autoComplete={authMode === 'register' ? 'new-password' : 'current-password'}
                 />
-                {/* Show / Hide password toggle */}
                 <button
                   id="login-toggle-password"
                   type="button"
@@ -281,35 +363,13 @@ function LoginPage({ onLoginSuccess, onBackToWelcome }) {
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
-                    /* Eye-off icon */
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.39 1 12a10.94 10.94 0 0 1 2.06-3.94" />
                       <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c5 0 9.27 3.61 11 8-.57 1.52-1.43 2.89-2.49 4.06" />
                       <line x1="1" y1="1" x2="23" y2="23" />
                     </svg>
                   ) : (
-                    /* Eye icon */
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                       <circle cx="12" cy="12" r="3" />
                     </svg>
@@ -317,11 +377,7 @@ function LoginPage({ onLoginSuccess, onBackToWelcome }) {
                 </button>
               </div>
               {errors.password && (
-                <span
-                  id="login-password-error"
-                  className="login-field-error"
-                  role="alert"
-                >
+                <span className="login-field-error" role="alert">
                   {errors.password}
                 </span>
               )}
@@ -334,14 +390,37 @@ function LoginPage({ onLoginSuccess, onBackToWelcome }) {
               className="login-submit-btn"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Signing in…' : 'Sign In'}
+              {isSubmitting
+                ? 'Processing…'
+                : authMode === 'register' ? 'Create Account & Continue' : 'Sign In'}
             </button>
+
+            {/* Guest mode option for students */}
+            {isStudent && onContinueGuest && (
+              <button
+                type="button"
+                onClick={onContinueGuest}
+                style={{
+                  width: '100%',
+                  marginTop: '12px',
+                  background: 'transparent',
+                  border: '1px solid var(--border-color, #475569)',
+                  color: 'var(--text-secondary, #94a3b8)',
+                  borderRadius: '8px',
+                  padding: '10px 16px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Continue in Guest / Demo Mode &rarr;
+              </button>
+            )}
           </form>
 
-          {/* Demo credentials notice */}
+          {/* Authentication notice */}
           <div className="login-demo-notice">
             <div className="login-demo-notice-header">
-              {/* Info icon */}
               <svg
                 width="14"
                 height="14"
@@ -357,17 +436,12 @@ function LoginPage({ onLoginSuccess, onBackToWelcome }) {
                 <line x1="12" y1="8" x2="12" y2="8" />
                 <line x1="12" y1="12" x2="12" y2="16" />
               </svg>
-              Demo mode — no real account required
+              Backend Authentication Active
             </div>
-            <div className="login-demo-credentials">
-              <div className="login-demo-row">
-                <span className="login-demo-key">Email</span>
-                <code className="login-demo-value">{DEMO_EMAIL}</code>
-              </div>
-              <div className="login-demo-row">
-                <span className="login-demo-key">Password</span>
-                <code className="login-demo-value">{DEMO_PASSWORD}</code>
-              </div>
+            <div className="login-demo-credentials" style={{ display: 'block', padding: '10px 14px' }}>
+              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                Securely connecting to Neon PostgreSQL. Passwords are encrypted with bcrypt and verified by the Express backend API.
+              </p>
             </div>
           </div>
         </div>
