@@ -7,6 +7,7 @@ import StudentGoals from './StudentGoals';
 import StudentSettings from './StudentSettings';
 import { getStoredToken } from '../../services/auth';
 import { fetchStudentPairingStatus } from '../../services/pairing';
+import { startStudySession, endStudySession, fetchStudentSessions } from '../../services/sessions';
 import './StudentPortal.css';
 
 /**
@@ -70,6 +71,10 @@ function StudentPortal({ onSwitchRole, currentUser, onGoToLogin }) {
 
   // Daily Study Goal Target (in minutes). Default: 120 mins (2 hours)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(120);
+
+  // Remote session fetch state (authenticated students only)
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState('');
 
   // Completed Sessions List (Historical demo records + dynamically recorded timer sessions)
   const [sessions, setSessions] = useState([
@@ -150,6 +155,53 @@ function StudentPortal({ onSwitchRole, currentUser, onGoToLogin }) {
     },
   ]);
 
+  // Fetch real session history for authenticated students on mount.
+  // Guest users keep the hardcoded demo sessions above.
+  useEffect(() => {
+    let isMounted = true;
+    const token = getStoredToken();
+    if (!token || !currentUser) return; // guest mode — keep demo data
+
+    setSessionsLoading(true);
+    setSessionsError('');
+
+    fetchStudentSessions(token)
+      .then((data) => {
+        if (!isMounted) return;
+        // Replace demo sessions with real ones; keep any timer sessions added
+        // during this page visit by only replacing the initial demo set.
+        const realSessions = (data.sessions || []).map((s) => ({
+          id: s.id,
+          subject: s.subject || 'General Study',
+          title: s.title || `${s.subject || 'General Study'} Focus Session`,
+          date: formatSessionDate(s.startedAt),
+          time: s.startedAt
+            ? new Date(s.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : '--:--',
+          durationMinutes: s.durationSeconds ? Math.max(1, Math.round(s.durationSeconds / 60)) : 0,
+          durationText: formatDurationText(s.durationSeconds || 0),
+          durationSecondsTotal: s.durationSeconds || 0,
+          focusScore: s.focusScore != null ? `${s.focusScore}%` : null,
+          isSimulatedScore: s.focusScore == null,
+          status: s.status || 'completed',
+          isUserRecorded: s.isUserRecorded ?? true,
+          notes: s.notes || s.goalText || '',
+        }));
+        setSessions(realSessions);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        setSessionsError(err.message || 'Could not load session history.');
+      })
+      .finally(() => {
+        if (isMounted) setSessionsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser]); // re-fetch if auth context changes
+
   // Wall-Clock Study Timer State (Lifted to StudentPortal so timer continues while browsing other tabs)
   const [timerState, setTimerState] = useState({
     status: 'idle', // 'idle' | 'running' | 'paused'
@@ -157,6 +209,7 @@ function StudentPortal({ onSwitchRole, currentUser, onGoToLogin }) {
     goal: '',
     startTime: null,
     accumulatedSeconds: 0,
+    sessionId: null,
   });
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -179,7 +232,22 @@ function StudentPortal({ onSwitchRole, currentUser, onGoToLogin }) {
   }, [timerState.status, timerState.startTime, timerState.accumulatedSeconds]);
 
   // Timer Control Functions
-  function handleStartTimer(subject, goal) {
+  async function handleStartTimer(subject, goal) {
+    const token = getStoredToken();
+    let backendSessionId = null;
+
+    if (currentUser && token) {
+      const startPayload = {
+        subject: subject || 'Mathematics',
+        goalText: goal ? goal.trim() : null,
+        title: goal && goal.trim() ? goal.trim() : `${subject || 'Mathematics'} Focus Session`,
+        deviceId: pairingData?.device?.id || undefined,
+      };
+
+      const res = await startStudySession(token, startPayload);
+      backendSessionId = res?.session?.id || null;
+    }
+
     const now = Date.now();
     setTimerState({
       status: 'running',
@@ -187,6 +255,7 @@ function StudentPortal({ onSwitchRole, currentUser, onGoToLogin }) {
       goal: goal || '',
       startTime: now,
       accumulatedSeconds: 0,
+      sessionId: backendSessionId,
     });
     setElapsedSeconds(0);
   }
@@ -216,13 +285,27 @@ function StudentPortal({ onSwitchRole, currentUser, onGoToLogin }) {
     }));
   }
 
-  function handleEndTimer() {
+  async function handleEndTimer() {
     let finalSeconds = timerState.accumulatedSeconds;
     if (timerState.status === 'running' && timerState.startTime) {
       finalSeconds += Math.floor((Date.now() - timerState.startTime) / 1000);
     }
 
-    const calculatedMinutes = Math.max(1, Math.round(finalSeconds / 60));
+    const token = getStoredToken();
+    let returnedSession = null;
+
+    if (currentUser && token && timerState.sessionId) {
+      const endPayload = {
+        notes: timerState.goal.trim() || undefined,
+        status: 'completed',
+      };
+      const res = await endStudySession(token, timerState.sessionId, endPayload);
+      returnedSession = res?.session;
+    }
+
+    const calculatedMinutes = returnedSession?.durationSeconds
+      ? Math.max(1, Math.round(returnedSession.durationSeconds / 60))
+      : Math.max(1, Math.round(finalSeconds / 60));
     const nowObj = new Date();
     const formattedTime = nowObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -238,19 +321,19 @@ function StudentPortal({ onSwitchRole, currentUser, onGoToLogin }) {
     const simulatedScore = `${Math.min(99, Math.max(88, 90 + Math.floor(Math.random() * 8)))}%`;
 
     const newSession = {
-      id: `sess-stu-${Date.now()}`,
-      subject: timerState.subject,
-      title: timerState.goal.trim() ? timerState.goal.trim() : `${timerState.subject} Focus Session`,
-      date: 'Today · Oct 24, 2026',
+      id: returnedSession?.id || `sess-stu-${Date.now()}`,
+      subject: returnedSession?.subject || timerState.subject,
+      title: returnedSession?.title || (timerState.goal.trim() ? timerState.goal.trim() : `${timerState.subject} Focus Session`),
+      date: 'Today · ' + nowObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       time: formattedTime,
       durationMinutes: calculatedMinutes,
       durationText,
-      durationSecondsTotal: finalSeconds,
+      durationSecondsTotal: returnedSession?.durationSeconds || finalSeconds,
       focusScore: simulatedScore,
       isSimulatedScore: true,
-      status: 'completed',
+      status: returnedSession?.status || 'completed',
       isUserRecorded: true,
-      notes: timerState.goal.trim() || 'Self-directed study block.',
+      notes: returnedSession?.notes || timerState.goal.trim() || 'Self-directed study block.',
     };
 
     setSessions((prev) => [newSession, ...prev]);
@@ -262,6 +345,7 @@ function StudentPortal({ onSwitchRole, currentUser, onGoToLogin }) {
       goal: '',
       startTime: null,
       accumulatedSeconds: 0,
+      sessionId: null,
     });
     setElapsedSeconds(0);
 
@@ -275,6 +359,7 @@ function StudentPortal({ onSwitchRole, currentUser, onGoToLogin }) {
       goal: '',
       startTime: null,
       accumulatedSeconds: 0,
+      sessionId: null,
     });
     setElapsedSeconds(0);
   }
@@ -377,6 +462,31 @@ function StudentPortal({ onSwitchRole, currentUser, onGoToLogin }) {
     const mins = Math.floor(secs / 60);
     const remSecs = secs % 60;
     return `${String(mins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`;
+  }
+
+  // Format an ISO timestamp into a human-readable session date label
+  function formatSessionDate(isoString) {
+    if (!isoString) return 'Unknown Date';
+    const d = new Date(isoString);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    const formatted = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    if (d.toDateString() === today.toDateString()) return `Today · ${formatted}`;
+    if (d.toDateString() === yesterday.toDateString()) return `Yesterday · ${formatted}`;
+    return formatted;
+  }
+
+  // Format a duration in seconds to "Xh Ym" or "Xm"
+  function formatDurationText(totalSeconds) {
+    const mins = Math.max(0, Math.round(totalSeconds / 60));
+    if (mins >= 60) {
+      const hrs = Math.floor(mins / 60);
+      const rem = mins % 60;
+      return rem > 0 ? `${hrs}h ${rem}m` : `${hrs}h`;
+    }
+    return `${mins}m`;
   }
 
   // Titles for Student Header
@@ -623,6 +733,9 @@ function StudentPortal({ onSwitchRole, currentUser, onGoToLogin }) {
           {activeTab === 'history' && (
             <StudentHistory
               sessions={sessions}
+              sessionsLoading={sessionsLoading}
+              sessionsError={sessionsError}
+              isAuthenticated={!!currentUser}
               onStartNewSession={() => setActiveTab('session')}
             />
           )}

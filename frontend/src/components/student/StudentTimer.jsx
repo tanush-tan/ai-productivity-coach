@@ -42,6 +42,10 @@ function StudentTimer({
   // Modals state
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [completedSummary, setCompletedSummary] = useState(null);
+  const [isStarting, setIsStarting] = useState(false);
+  const [startError, setStartError] = useState('');
+  const [isEnding, setIsEnding] = useState(false);
+  const [endError, setEndError] = useState('');
 
   // Formatting helpers
   function formatDisplayTime(totalSecs) {
@@ -56,19 +60,36 @@ function StudentTimer({
     return `${pad(mins)}:${pad(secs)}`;
   }
 
-  function handleStartClick(e) {
+  async function handleStartClick(e) {
     e.preventDefault();
-    onStartTimer(selectedSubject, goalText);
+    try {
+      setIsStarting(true);
+      setStartError('');
+      await onStartTimer(selectedSubject, goalText);
+    } catch (err) {
+      setStartError(err.message || 'Failed to start study session.');
+    } finally {
+      setIsStarting(false);
+    }
   }
 
   function handleEndClick() {
+    setEndError('');
     setShowEndConfirm(true);
   }
 
-  function handleConfirmEnd() {
-    setShowEndConfirm(false);
-    const recordedSession = onEndTimer();
-    setCompletedSummary(recordedSession);
+  async function handleConfirmEnd() {
+    try {
+      setIsEnding(true);
+      setEndError('');
+      const recordedSession = await onEndTimer();
+      setShowEndConfirm(false);
+      setCompletedSummary(recordedSession);
+    } catch (err) {
+      setEndError(err.message || 'Failed to end study session.');
+    } finally {
+      setIsEnding(false);
+    }
   }
 
   return (
@@ -127,12 +148,30 @@ function StudentTimer({
               <span className="standby-label">Ready to begin</span>
             </div>
 
+            {startError && (
+              <div
+                className="timer-error-msg"
+                role="alert"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  color: '#fca5a5',
+                  fontSize: '13px',
+                  marginBottom: '16px',
+                }}
+              >
+                {startError}
+              </div>
+            )}
+
             <div className="setup-actions">
-              <button type="submit" className="start-session-btn">
+              <button type="submit" className="start-session-btn" disabled={isStarting}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <polygon points="5 3 19 12 5 21 5 3" />
                 </svg>
-                <span>Start Focus Session</span>
+                <span>{isStarting ? 'Starting Session…' : 'Start Focus Session'}</span>
               </button>
             </div>
           </form>
@@ -241,11 +280,33 @@ function StudentTimer({
               Ending the session will save it to your completed study records and update today&apos;s goal progress.
             </p>
 
+            {endError && (
+              <div
+                className="timer-error-msg"
+                role="alert"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  color: '#fca5a5',
+                  fontSize: '13px',
+                  marginBottom: '14px',
+                }}
+              >
+                {endError}
+              </div>
+            )}
+
             <div className="modal-actions-row">
               <button
                 type="button"
                 className="modal-btn-cancel"
-                onClick={() => setShowEndConfirm(false)}
+                onClick={() => {
+                  setEndError('');
+                  setShowEndConfirm(false);
+                }}
+                disabled={isEnding}
               >
                 Keep Studying
               </button>
@@ -253,8 +314,9 @@ function StudentTimer({
                 type="button"
                 className="modal-btn-confirm"
                 onClick={handleConfirmEnd}
+                disabled={isEnding}
               >
-                Confirm &amp; Save
+                {isEnding ? 'Saving…' : 'Confirm & Save'}
               </button>
             </div>
           </div>

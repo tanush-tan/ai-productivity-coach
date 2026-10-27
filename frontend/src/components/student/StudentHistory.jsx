@@ -9,9 +9,11 @@ import './StudentHistory.css';
  *   - Sessions list with date, time, subject, duration, simulated focus rating, and status
  *   - Immediate inclusion of sessions completed during the current timer session
  *   - Detail modal showing complete session metadata and focus notes
+ *   - Loading skeleton while real sessions are fetched
+ *   - Error banner if the fetch fails
  *   - Empty state when filtered out or no sessions exist
  */
-function StudentHistory({ sessions, onStartNewSession }) {
+function StudentHistory({ sessions, sessionsLoading, sessionsError, isAuthenticated, onStartNewSession }) {
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState('all');
   const [activeModalSession, setActiveModalSession] = useState(null);
 
@@ -76,8 +78,36 @@ function StudentHistory({ sessions, onStartNewSession }) {
         </div>
       </div>
 
-      {/* 2. Sessions List / Table */}
-      {filteredSessions.length > 0 ? (
+      {/* 2. Loading Skeleton */}
+      {sessionsLoading && (
+        <div className="history-card-panel" aria-busy="true" aria-label="Loading session history">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="history-row-item history-row-skeleton">
+              <div className="skeleton-block skeleton-wide" />
+              <div className="skeleton-block skeleton-medium" />
+              <div className="skeleton-block skeleton-short" />
+              <div className="skeleton-block skeleton-short" />
+              <div className="skeleton-block skeleton-short" />
+              <div className="skeleton-block skeleton-short" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 3. Error Banner */}
+      {!sessionsLoading && sessionsError && (
+        <div className="history-error-banner" role="alert">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{sessionsError}</span>
+        </div>
+      )}
+
+      {/* 4. Sessions List / Table */}
+      {!sessionsLoading && !sessionsError && filteredSessions.length > 0 ? (
         <div className="history-card-panel">
           <div className="history-table-header">
             <span className="col-subject">Subject &amp; Activity</span>
@@ -138,28 +168,32 @@ function StudentHistory({ sessions, onStartNewSession }) {
           </div>
         </div>
       ) : (
-        /* Empty State */
-        <div className="history-empty-state">
-          <div className="empty-icon-wrap" aria-hidden="true">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="8" y1="12" x2="16" y2="12" />
-            </svg>
+        /* Empty State — only shown when not loading and no error */
+        !sessionsLoading && !sessionsError && (
+          <div className="history-empty-state">
+            <div className="empty-icon-wrap" aria-hidden="true">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="8" y1="12" x2="16" y2="12" />
+              </svg>
+            </div>
+            <h3 className="empty-title">No study sessions found</h3>
+            <p className="empty-desc">
+              {selectedSubjectFilter !== 'all'
+                ? `No sessions recorded for "${selectedSubjectFilter}". Try selecting "All Subjects" or start a new study session.`
+                : isAuthenticated
+                  ? 'No sessions saved to your account yet. Start your first focus block and it will appear here automatically.'
+                  : 'You haven\u2019t completed any study sessions yet. Click below to start your first focus block!'}
+            </p>
+            <button
+              type="button"
+              className="empty-action-btn"
+              onClick={onStartNewSession}
+            >
+              Start Focus Session
+            </button>
           </div>
-          <h3 className="empty-title">No study sessions found</h3>
-          <p className="empty-desc">
-            {selectedSubjectFilter !== 'all'
-              ? `No sessions recorded for "${selectedSubjectFilter}". Try selecting "All Subjects" or start a new study session.`
-              : 'You haven’t completed any study sessions yet. Click below to start your first focus block!'}
-          </p>
-          <button
-            type="button"
-            className="empty-action-btn"
-            onClick={onStartNewSession}
-          >
-            Start Focus Session
-          </button>
-        </div>
+        )
       )}
 
       {/* 3. Session Details Modal */}

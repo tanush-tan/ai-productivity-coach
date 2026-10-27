@@ -4,6 +4,7 @@ import { checkDbHealth } from './db.js';
 import authRouter from './routes/auth.js';
 import pairingRouter from './routes/pairing.js';
 import devicesRouter from './routes/devices.js';
+import sessionsRouter from './routes/sessions.js';
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 app.use('/api/auth', authRouter);
 app.use('/api/pairing', pairingRouter);
 app.use('/api/devices', devicesRouter);
+app.use('/api/sessions', sessionsRouter);
 
 /**
  * Health check endpoint: verifies both API process and PostgreSQL database connectivity.
